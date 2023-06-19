@@ -70,6 +70,10 @@ export const readLogLines = async (req, res): Promise<void> => {
     return invalidRequest(res, 'Missing "filename" query parameter');
   }
 
+  if (req.query.filter && typeof req.query.filter !== 'string') {
+    return invalidRequest(res, 'Query param "filter" string');
+  }
+
   const device = getDevice(req.params.deviceId);
   if (!device) {
     return resourceNotFound(res);
@@ -81,11 +85,12 @@ export const readLogLines = async (req, res): Promise<void> => {
   try {
     const lines = await readLines(
       req.query.filename,
-      isNaN(count) ? Number.MAX_SAFE_INTEGER : count
+      isNaN(count) ? Number.MAX_SAFE_INTEGER : count,
+      req.query.filter
     );
     res.status(200).json({ success: true, data: lines });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (e.code === 'EACCES') {
       return forbidden(res);
     }

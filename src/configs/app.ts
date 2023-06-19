@@ -30,8 +30,8 @@ export const getAppConfig = (): AppConfig => {
     config = fs.readFileSync(path.join(__dirname, '../../config.json'), {
       encoding: 'utf8',
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (e.code !== 'ENOENT') {
       throw new Error(e);
     }
@@ -41,8 +41,8 @@ export const getAppConfig = (): AppConfig => {
   let parsed: AppConfig;
   try {
     parsed = JSON.parse(config) as AppConfig;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     throw new Error('Invalid config.json');
   }
 

@@ -22,8 +22,8 @@ export const listEntries = async (base?: string): Promise<Array<Dirent>> => {
     if (ent.isDirectory()) {
       try {
         files.push(...(await listEntries(path.join(base, ent.name))));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
-        // eslint-disable-line @typescript-eslint/no-explicit-any
         if (e.code !== 'EACCES') {
           throw new Error(e);
         }
@@ -46,11 +46,14 @@ const LineFeed = 0x0a;
  *
  * @param filename File in which to process
  * @param count Max number of lines to return
+ * @param filter Only return lines containing this string
+ * @param encoding Encoding of `filename`; Defaults to utf-8
  * @returns Extracted lines from file
  */
 export const readLines = async (
   filename: string,
   count: number = DefaultMaxLines,
+  filter: string = undefined,
   encoding: BufferEncoding = 'utf-8'
 ): Promise<Array<string>> => {
   const fullPath = path.join(getConfig().app.logLocation, filename);
@@ -77,9 +80,13 @@ export const readLines = async (
   let endLineOffset: number;
   const fd = await fs.open(fullPath, 'r');
 
+  const filterMatch = (s: string): boolean => {
+    return filter === undefined || s.includes(filter);
+  };
+
   const addLine = (buf: Buffer, start: number, end?: number): void => {
     const s = buf.subarray(start, end).toString(encoding).trim() + lineBuffer;
-    if (s.length > 0) {
+    if (s.length > 0 && filterMatch(s)) {
       lines.push(s);
     }
     lineBuffer = '';
@@ -152,7 +159,10 @@ export const readLines = async (
     if (remaining <= 0) {
       //  remainder to start of file?
       if (lineBuffer.length > 0) {
-        lines.push(lineBuffer.trim());
+        const line = lineBuffer.trim();
+        if (filterMatch(line)) {
+          lines.push(line);
+        }
       }
       break;
     }
