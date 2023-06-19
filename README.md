@@ -25,8 +25,17 @@ npm test
 
 ## Configuration
 
-- TODO leader vs follower
-- TODO config.json
+A configuration file, `config.json` can be used to override some defaults. The following example shows keys that may be overridden:
+
+```json
+// config.json
+{
+  "mode": "FOLLOWER",
+  "port": 1234,
+  "host": "0.0.0.0",
+  "logLocation": "/var/foo/log"
+}
+```
 
 ## Docs
 

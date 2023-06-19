@@ -35,7 +35,7 @@ beforeAll(() => {
   mkData(TestFiles.SimpleCrLf, `A simple\r\nWindows style\r\nlog with CRLFs\r\n`);
 });
 
-afterAll( () => {
+afterAll(() => {
   if (tempDir) {
     fs.rmdirSync(tempDir, { recursive: true });
   }
