@@ -6,6 +6,8 @@ This project demonstrates a fairly [KISS](https://en.wikipedia.org/wiki/KISS_pri
 - A given device has discoverable logs.
 - Each log may be queried by filename.
 
+There are **many** drawbacks to this simple design. A more mature system would perhaps utilize leader election, allow for HA, etc.
+
 ## Components
 
 - [Express](https://expressjs.com/) for web handling
