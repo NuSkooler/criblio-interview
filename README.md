@@ -64,6 +64,7 @@ A number of items are _not_ implemented, including:
 - TLS
 - A number of quickly hand rolled methods such as HTTP requests need to handle edge cases
 - Logging
+- Additional testing that I don't yet have time to implement
 
 Additionally, a number of optimizations could be performed such as caching:
 Perhaps a LRU of recently fetched log files per device. Keep a open fd and implement a fs watch

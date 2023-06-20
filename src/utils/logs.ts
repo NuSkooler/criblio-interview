@@ -38,7 +38,7 @@ export const listEntries = async (base?: string): Promise<Array<Dirent>> => {
 
 export const DefaultMaxLines: number = 1024 * 8; //  let's assume for now, 8k lines is plenty
 
-const MaxChunkSize = 1024 * 16; // up to 16k reads
+const MaxChunkSize = 20; //1024 * 16; // up to 16k reads
 const LineFeed = 0x0a;
 
 /**
@@ -58,114 +58,78 @@ export const readLines = async (
 ): Promise<Array<string>> => {
   const fullPath = path.join(getConfig().app.logLocation, filename);
 
-  const stats = await fs.stat(fullPath);
-
-  if (stats.size === 0) {
-    return [];
-  }
-
   //
-  //  Read from EoF to start of file, chunk by chunk.
-  //  Keep a buffer of the current line for cross-buffer boundaries.
-  //  Capture:
-  //  * EoL -> EoL
-  //  * start of file -> EoL
-  //  * EoL -> end (non-terminated)
+  //  Some scenarios:
+  //  |some string|\nanother line here\nfinal line\n| <-- includes final term
+  //  |another thing\r\n|but with no\n|final| term!| <-- no terminator, mixed CRLFs!
   //
-  const chunkSize = Math.min(MaxChunkSize, stats.size);
+  //  Read the file backwards, chunk-by-chunk, scanning for \n; Maintain
+  //  a tail buffer across chunks for partials. Tidy up strings trimming all
+  //  CR/LFs as we add them. When we we run out of bytes or reach our count
+  //  return the array.
+  //
+
   const lines: Array<string> = [];
-  let remaining = stats.size;
-  let fileOffset = remaining;
-  let lineBuffer = '';
-  let endLineOffset: number;
   const fd = await fs.open(fullPath, 'r');
 
-  const filterMatch = (s: string): boolean => {
-    return filter === undefined || s.includes(filter);
-  };
+  const stats = await fd.stat();
+  let remaining = stats.size;
+  let tailBuffer = '';
 
-  const addLine = (buf: Buffer, start: number, end?: number): void => {
-    const s = buf.subarray(start, end).toString(encoding).trim() + lineBuffer;
-    if (s.length > 0 && filterMatch(s)) {
+  const addLine = (s: string): boolean => {
+    s = s.replace(/[\r\n]/g, ''); // tidy extra CR/LFs
+
+    if (s.length > 0 && (!filter || s.includes(filter))) {
       lines.push(s);
     }
-    lineBuffer = '';
+    return lines.length !== count;
   };
 
-  const readBuf = Buffer.allocUnsafe(chunkSize);
-  fileOffset -= Math.min(chunkSize, remaining);
+  while (lines.length < count && remaining > 0) {
+    const chunkSize = Math.min(MaxChunkSize, remaining);
+    const chunkOffset = remaining - chunkSize;
+    const readBuf = Buffer.allocUnsafe(chunkSize);
+    const readRes = await fd.read(readBuf, 0, chunkSize, chunkOffset);
 
-  while (lines.length < count) {
-    const readRes = await fd.read(readBuf, 0, chunkSize, fileOffset);
-
-    if (readRes.bytesRead < 1) {
-      break;
+    if (readRes.bytesRead !== readBuf.length) {
+      throw new Error('Failed to read chunk');
     }
 
-    //  If we've buffered, we have the tail, but need the
-    //  start of the line. Try to finish it up in the current chunk.
-    if (lineBuffer.length > 0) {
-      const startLineOffset = readRes.buffer.lastIndexOf(LineFeed);
-      if (startLineOffset < 0) {
-        //  we need to read more
-        remaining -= readRes.bytesRead;
-        fileOffset -= Math.min(chunkSize, remaining);
+    let currLfPosition = readBuf.lastIndexOf(LineFeed);
+    let prevLfPosition = readBuf.length;
 
-        if (remaining < 0) {
-          //  remainder of file from start
-          addLine(readRes.buffer, 0);
-          break;
-        } else {
-          continue;
-        }
+    while (currLfPosition > -1) {
+      const line =
+        readBuf
+          .subarray(
+            currLfPosition + 1,
+            prevLfPosition > currLfPosition ? prevLfPosition : readBuf.length
+          )
+          .toString(encoding) + tailBuffer;
+
+      if (!addLine(line)) {
+        break;
       }
 
-      addLine(readRes.buffer, startLineOffset);
-      endLineOffset = startLineOffset;
-    } else {
-      endLineOffset = readRes.buffer.lastIndexOf(LineFeed);
+      tailBuffer = '';
+      prevLfPosition = currLfPosition;
+
+      if (currLfPosition === 0) {
+        break; // we can't scan back further
+      }
+
+      currLfPosition = readBuf.lastIndexOf(LineFeed, currLfPosition - 1);
     }
 
-    if (endLineOffset > -1) {
-      if (remaining === stats.size && endLineOffset < readRes.buffer.length - 1) {
-        // first pass: take end LF -> EoF, if any
-        addLine(readRes.buffer, endLineOffset);
-      }
-
-      const remainder = readRes.buffer.subarray(0, endLineOffset);
-      let startLineOffset = remainder.lastIndexOf(LineFeed);
-      if (startLineOffset < 0) {
-        // no more to read; reserve buffer
-        lineBuffer = remainder.toString(encoding).trim();
-      } else {
-        while (lines.length < count && startLineOffset < endLineOffset) {
-          addLine(remainder, startLineOffset, endLineOffset);
-
-          endLineOffset = startLineOffset;
-          startLineOffset = remainder.lastIndexOf(LineFeed, startLineOffset - 1);
-
-          if (startLineOffset < 0) {
-            // no more to read; reserve buffer & break loop
-            lineBuffer = remainder.subarray(0, endLineOffset).toString(encoding);
-            break;
-          }
-        }
-      }
+    if (prevLfPosition > 0) {
+      tailBuffer = readBuf.subarray(0, prevLfPosition).toString(encoding) + tailBuffer;
     }
 
-    remaining -= readRes.bytesRead;
-    fileOffset -= Math.min(chunkSize, remaining);
+    remaining -= chunkSize;
+  }
 
-    if (remaining <= 0) {
-      //  remainder to start of file?
-      if (lineBuffer.length > 0) {
-        const line = lineBuffer.trim();
-        if (filterMatch(line)) {
-          lines.push(line);
-        }
-      }
-      break;
-    }
+  if (tailBuffer) {
+    addLine(tailBuffer); // start of file
   }
 
   fd.close();
