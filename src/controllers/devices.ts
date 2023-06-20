@@ -6,7 +6,7 @@ import {
   forbidden,
   internalError,
 } from '../utils/response';
-import { listEntries, readLines } from '../utils/logs';
+import { listEntries, readLines, DefaultMaxLines } from '../utils/logs';
 import { Dirent } from 'fs';
 import axios from 'axios';
 
@@ -75,7 +75,12 @@ export const readLogLines = async (req, res): Promise<void> => {
   }
 
   if (req.query.filter && typeof req.query.filter !== 'string') {
-    return invalidRequest(res, 'Query param "filter" string');
+    return invalidRequest(res, 'Query param "filter" must be a string');
+  }
+
+  const count = req.query.count ? parseInt(req.query.count) : DefaultMaxLines;
+  if (isNaN(count)) {
+    return invalidRequest(res, 'Query param "count" must be a number');
   }
 
   const device = getDevice(req.params.deviceId);
@@ -83,15 +88,27 @@ export const readLogLines = async (req, res): Promise<void> => {
     return resourceNotFound(res);
   }
 
-  //  :TODO: handle follower
-  const count = parseInt(req.query.count);
+  if (device.remoteAddress) {
+    let remoteUrl = `http://${device.remoteAddress}/v1/devices/${device.id}/logLines?filename=${req.query.filename}&count=${count}`;
+
+    if (req.query.filter) {
+      remoteUrl += `&filter=${req.query.filter}`;
+    }
+
+    try {
+      const remoteRes = await axios.get(remoteUrl);
+      const logResponse = remoteRes.data as LogResponse;
+
+      res.status(200).json(logResponse);
+    } catch (e) {
+      internalError(res);
+    }
+
+    return;
+  }
 
   try {
-    const lines = await readLines(
-      req.query.filename,
-      isNaN(count) ? Number.MAX_SAFE_INTEGER : count,
-      req.query.filter
-    );
+    const lines = await readLines(req.query.filename, count, req.query.filter);
     res.status(200).json({ success: true, data: lines });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
