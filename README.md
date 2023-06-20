@@ -46,9 +46,11 @@ A configuration file, `config.json` can be used to override some defaults. The f
 ```json
 {
   "mode": "FOLLOWER",
-  "port": 1234,
-  "host": "0.0.0.0",
-  "logLocation": "/var/foo/log"
+  "port": 8080,
+  "host": "localhost",
+  "logLocation": "/var/foo/log",
+  "leaderHost": "10.0.2.4",
+  "leaderPort": 8080
 }
 ```
 
