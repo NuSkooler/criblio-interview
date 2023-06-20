@@ -38,7 +38,7 @@ export const listEntries = async (base?: string): Promise<Array<Dirent>> => {
 
 export const DefaultMaxLines: number = 1024 * 8; //  let's assume for now, 8k lines is plenty
 
-const MaxChunkSize = 20; //1024 * 16; // up to 16k reads
+const MaxChunkSize = 1024 * 16; // up to 16k reads
 const LineFeed = 0x0a;
 
 /**
