@@ -32,6 +32,8 @@ http get 'http://localhost:8080/v1/devices/a74c3a93-6eee-5f91-80a8-07ee31d0c253/
 npm test
 ```
 
+See also: [Testing](./docs/testing.md).
+
 # For Developers
 
 ## Installation

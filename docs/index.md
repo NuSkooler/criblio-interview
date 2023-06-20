@@ -1,2 +1,3 @@
 - [General Design](./design.md)
 - [Project Layout](./layout.md)
+- [Testing](./testing.md)
