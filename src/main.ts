@@ -7,9 +7,10 @@ import { AddressInfo } from 'net';
 import routes from './routes';
 import bodyParser from 'body-parser';
 import { getDeviceInfo } from './utils/device';
-
-import axios from 'axios';
 import { registerDevice } from './models/devices';
+import axios from 'axios';
+import expressWinston from 'express-winston';
+import winston from 'winston';
 
 /**
  * Creates the main Express REST server.
@@ -23,7 +24,27 @@ const createServer = (): void => {
 
   app.disable('x-powered-by');
 
+  app.use(
+    expressWinston.logger({
+      transports: [new winston.transports.Console()],
+      format: winston.format.combine(
+        winston.format.colorize({ all: true }),
+        winston.format.simple()
+      ),
+    })
+  );
+
   app.use('/v1', routes);
+
+  app.use(
+    expressWinston.errorLogger({
+      transports: [new winston.transports.Console()],
+      format: winston.format.combine(
+        winston.format.colorize({ all: true }),
+        winston.format.simple()
+      ),
+    })
+  );
 
   const host = config.app.host || DefaultListenHost;
   const port = config.app.port || DefaultListenPort;

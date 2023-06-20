@@ -12,4 +12,5 @@ There are **many** drawbacks to this simple design. A more mature system would p
 
 - [Express](https://expressjs.com/) for web handling
 - [Jest](https://jestjs.io/) for unit testing
+- [Winston](https://github.com/winstonjs/winston) for logging
 - [Prettier](https://prettier.io/) for code formatting
