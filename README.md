@@ -17,13 +17,13 @@ Maybe try out some queries! Example using [httpie](https://httpie.io/):
 
 ```bash
 # Discover devices
-http get 'http://localhost:8080/devices/'
+http get 'http://localhost:8080/v1/devices/'
 
 # List available logs on device "a74c3a93-6eee-5f91-80a8-07ee31d0c253"
-http get 'http://localhost:8080/devices/a74c3a93-6eee-5f91-80a8-07ee31d0c253/logs'
+http get 'http://localhost:8080/v1/devices/a74c3a93-6eee-5f91-80a8-07ee31d0c253/logs'
 
 # Fetch some log lines from a device/log tuple
-http get 'http://localhost:8080/devices/a74c3a93-6eee-5f91-80a8-07ee31d0c253/logLines?file=vmware-network.log&count=42
+http get 'http://localhost:8080/v1/devices/a74c3a93-6eee-5f91-80a8-07ee31d0c253/logLines?file=vmware-network.log&count=42
 ```
 
 ## Testing

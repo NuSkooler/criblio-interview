@@ -1,4 +1,4 @@
-import { getRegisteredDevices } from '../models/devices';
+import { getRegisteredDevices, registerDevice } from '../models/devices';
 import { DeviceInfo } from '../utils/device';
 import {
   resourceNotFound,
@@ -8,7 +8,7 @@ import {
 } from '../utils/response';
 import { listEntries, readLines } from '../utils/logs';
 import { Dirent } from 'fs';
-import { httpRequestJson } from '../utils/http';
+import axios from 'axios';
 
 /**
  *
@@ -21,11 +21,16 @@ export const list = (_req, res): void => {
     .json({ success: true, data: Array.from(getRegisteredDevices().values()) });
 };
 
-// export const register = (req, res) => {
+export const register = (req, res): void => {
+  const device = req.body as DeviceInfo;
 
-// }
+  registerDevice(device);
+
+  res.status(200).json({ success: true });
+};
 
 interface LogResponse {
+  status: boolean;
   data: Array<string>;
 }
 
@@ -41,16 +46,17 @@ export const listLogs = async (req, res): Promise<void> => {
   }
 
   if (device.remoteAddress) {
+    const remoteUrl = `http://${device.remoteAddress}/v1/devices/${device.id}/logs`;
     try {
-      const logsResponse = (await httpRequestJson(
-        `http://${device.remoteAddress}/devices/${device.id}/logs`
-      )) as LogResponse;
-      return res.status(200).json({ success: true, data: logsResponse.data });
+      const remoteRes = await axios.get(remoteUrl);
+      const logResponse = remoteRes.data as LogResponse;
+
+      res.status(200).json(logResponse);
     } catch (e) {
-      return res
-        .status(503)
-        .json({ success: false, message: 'Could not fetch remote logs' });
+      internalError(res);
     }
+
+    return;
   }
 
   try {
@@ -61,8 +67,6 @@ export const listLogs = async (req, res): Promise<void> => {
   } catch (e) {
     internalError(res);
   }
-
-  // If local, we can query directly; else forward
 };
 
 export const readLogLines = async (req, res): Promise<void> => {

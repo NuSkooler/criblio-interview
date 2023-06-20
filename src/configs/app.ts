@@ -11,6 +11,9 @@ export interface AppConfig {
   host?: string;
   port?: number;
   logLocation?: string;
+  leaderHost?: string;
+  leaderPort?: number;
+  deviceId?: string;
 }
 
 export const DefaultListenHost = 'localhost';
@@ -27,7 +30,8 @@ export const getAppConfig = (): AppConfig => {
   let config: string;
 
   try {
-    config = fs.readFileSync(path.join(__dirname, '../../config.json'), {
+    const configPath = process.argv[2] || path.join(__dirname, '../../config.json');
+    config = fs.readFileSync(configPath, {
       encoding: 'utf8',
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,7 +39,7 @@ export const getAppConfig = (): AppConfig => {
     if (e.code !== 'ENOENT') {
       throw new Error(e);
     }
-    return { mode: Mode.FOLLOWER };
+    return { mode: Mode.LEADER };
   }
 
   let parsed: AppConfig;
@@ -62,10 +66,26 @@ export const getAppConfig = (): AppConfig => {
     throw new Error('"logLocation" must be a string');
   }
 
+  if (parsed.deviceId && typeof parsed.deviceId !== 'string') {
+    throw new Error('"deviceId" must be a string');
+  }
+
+  if (parsed.mode === Mode.FOLLOWER) {
+    if (!parsed.leaderHost || typeof parsed.leaderHost !== 'string') {
+      throw new Error('FOLLOWER mode requires "leaderHost" string');
+    }
+    if (!parsed.leaderPort || typeof parsed.leaderPort !== 'number') {
+      throw new Error('FOLLOWER mode requires "leaderPort" number');
+    }
+  }
+
   return {
     mode: Mode[parsed.mode],
     host: parsed.host,
     port: parsed.port,
+    leaderHost: parsed.leaderHost,
+    leaderPort: parsed.leaderPort,
     logLocation: parsed.logLocation || DefaultLogLocation,
+    deviceId: parsed.deviceId,
   };
 };
